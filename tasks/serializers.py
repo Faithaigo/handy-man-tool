@@ -7,7 +7,7 @@ from django.db import transaction
 
 
 class TaskMaterialSerializer(serializers.ModelSerializer):
-    material_id = serializers.PrimaryKeyRelatedField(queryset=Material.objects.all(), write_only=True, source='material')
+    material_id = serializers.PrimaryKeyRelatedField(queryset=Material.objects.all(), source='material')
 
     material_name = serializers.CharField(source='material.name', read_only=True)
 
@@ -17,7 +17,7 @@ class TaskMaterialSerializer(serializers.ModelSerializer):
 
 
 class TaskToolSerializer(serializers.ModelSerializer):
-    tool_id = serializers.PrimaryKeyRelatedField(queryset=Tool.objects.all(), write_only=True,
+    tool_id = serializers.PrimaryKeyRelatedField(queryset=Tool.objects.all(),
                                                      source='tool')
 
     tool_name = serializers.CharField(source='tool.name', read_only=True)
@@ -41,6 +41,7 @@ class TaskSerializer(serializers.ModelSerializer):
         materials_data = validated_data.pop('taskmaterial_set')
         tools_data = validated_data.pop('tasktool_set')
 
+
         task = Task.objects.create(**validated_data)
 
         for material_data in materials_data:
@@ -50,3 +51,59 @@ class TaskSerializer(serializers.ModelSerializer):
             TaskTool.objects.create(task=task, **tool_data)
 
         return task
+
+    def update(self, instance, validated_data):
+        materials_data = validated_data.pop('taskmaterial_set',[])
+        tools_data = validated_data.pop('tasktool_set',[])
+
+        for attr, val in validated_data.items():
+            setattr(instance, attr, val)
+        instance.save()
+
+        #materials
+        existing_materials = {}
+        incoming_materials = {}
+
+        for e_mat in instance.taskmaterial_set.all():
+            existing_materials[e_mat.material.id] = e_mat
+
+        for i_mat in materials_data:
+            incoming_materials[i_mat['material'].id] = i_mat
+
+        for mat_id in set(existing_materials) - set(incoming_materials): #find what is in existing_materials that is not in incoming materials
+            existing_materials[mat_id].delete()
+
+        for mat_id, mat_data in incoming_materials.items():
+            if mat_id in existing_materials:
+                task_mat = existing_materials[mat_id]
+                if task_mat.quantity != mat_data['quantity']:
+                    task_mat.quantity = mat_data['quantity']
+                    task_mat.save()
+            else:
+                TaskMaterial.objects.create(task=instance, **mat_data)
+
+        #tools
+        existing_tools = {}
+        incoming_tools = {}
+
+        for e_tool in instance.tasktool_set.all():
+            existing_tools[e_tool.tool.id] = e_tool
+
+        for i_tool in tools_data:
+            incoming_tools[i_tool['tool'].id] = i_tool
+
+        #Remove tools not in the update data
+        for tool_id in set(existing_tools) - set(incoming_tools):
+            existing_tools[tool_id].delete()
+
+        #update existing tools or add new tools
+        for tool_id, tool_data in incoming_tools.items():
+            if tool_id in existing_tools:
+                task_tool = existing_tools[tool_id]
+                if task_tool.quantity != tool_data['quantity']:
+                    task_tool.quantity = tool_data['quantity']
+                    task_tool.save()
+            else:
+                TaskTool.objects.create(task=instance, **tool_data)
+
+        return instance
