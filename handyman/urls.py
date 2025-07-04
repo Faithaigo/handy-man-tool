@@ -22,4 +22,5 @@ urlpatterns = [
     path('materials/', include('materials.urls') ),
     path('tools/', include('tools.urls') ),
     path('tasks/', include('tasks.urls') ),
+    path('jobs/', include('jobs.urls')),
 ]

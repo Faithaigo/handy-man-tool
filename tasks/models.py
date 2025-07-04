@@ -10,7 +10,7 @@ class Task(models.Model):
     name = models.CharField(max_length=100)
     materials = models.ManyToManyField(Material, through='TaskMaterial')
     tools = models.ManyToManyField(Tool, through='TaskTool')
-    job = models.ForeignKey(Job, on_delete=models.CASCADE, null=True)
+    job = models.ForeignKey(Job, related_name="tasks", on_delete=models.CASCADE, null=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, related_name='tasks_updated_by')
