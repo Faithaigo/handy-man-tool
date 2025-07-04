@@ -52,6 +52,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
         return task
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         materials_data = validated_data.pop('taskmaterial_set',[])
         tools_data = validated_data.pop('tasktool_set',[])
